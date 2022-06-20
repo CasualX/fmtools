@@ -1,0 +1,21 @@
+[package]
+name = "fmtools"
+version = "0.1.0"
+authors = ["Casper <CasualX@users.noreply.github.com>"]
+edition = "2021"
+license = "MIT"
+
+description = "Fast, minimal, feature-rich, extended formatting syntax for Rust!"
+documentation = "https://docs.rs/fmtools/"
+repository = "https://github.com/CasualX/fmtools"
+readme = "readme.md"
+keywords = ["fmt", "template", "format"]
+categories = ["no-std", "template-engine"]
+
+[features]
+default = ["std"]
+std = []
+
+[dependencies]
+# Optional dependency to obfuscate all the string literals
+obfstr = { version = "0.3", optional = true }

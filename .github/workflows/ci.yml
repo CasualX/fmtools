@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - stable
+          - beta
+          - nightly
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          default: true
+
+      - name: Cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose
+
+      - name: Cargo test (all features)
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose --all-features
+
+      - name: Cargo check (no_std)
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --no-default-features
