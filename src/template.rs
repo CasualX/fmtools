@@ -128,22 +128,22 @@
 ///
 /// The displayable object can own the captured variables with `move` and can be returned from functions.
 ///
-/// ### Custom formatting
+/// ### Escape hatch
 ///
 /// ```
 /// # let s =
 /// fmtools::fmt! {
 /// 	"Now entering ["
-/// 	|f| f.write_str("custom formatting")?;
+/// 	|f| f.write_str("escape hatch")?;
 /// 	"]"
 /// }
 /// # .to_string();
-/// # assert_eq!(s, "Now entering [custom formatting]");
+/// # assert_eq!(s, "Now entering [escape hatch]");
 /// ```
 ///
-/// The resulting string is `Now entering [custom formatting]`.
+/// The resulting string is `Now entering [escape hatch]`.
 ///
-/// Closure syntax provides an escape hatch to inject custom code if needed.
+/// Closure syntax provides an escape hatch to inject code if needed.
 /// The argument's type is [`&mut Formatter`](std::fmt::Formatter).
 #[macro_export]
 macro_rules! fmt {
@@ -166,16 +166,16 @@ macro_rules! fmt {
 macro_rules! __fmt {
 	// text
 	($f:ident $text1:literal $text2:literal $($tail:tt)*) => {
-		$crate::__fmt!{$f concat!($text1, $text2) $($tail)*}
+		$crate::__fmt!{$f @concat($text1, $text2) $($tail)*}
 	};
 	($f:ident $text:literal $($tail:tt)*) => {
 		$f.write_str($crate::obfstr!(concat!($text)))?;
 		$crate::__fmt!{$f $($tail)*}
 	};
-	($f:ident concat!($($texts:literal),+) $text:literal $($tail:tt)*) => {
-		$crate::__fmt!{$f concat!($($texts,)+ $text) $($tail)*}
+	($f:ident @concat($($texts:literal),+) $text:literal $($tail:tt)*) => {
+		$crate::__fmt!{$f @concat($($texts,)+ $text) $($tail)*}
 	};
-	($f:ident concat!($($texts:literal),+) $($tail:tt)*) => {
+	($f:ident @concat($($texts:literal),+) $($tail:tt)*) => {
 		$f.write_str($crate::obfstr!(concat!($($texts),+)))?;
 		$crate::__fmt!{$f $($tail)*}
 	};
@@ -186,7 +186,7 @@ macro_rules! __fmt {
 		$crate::__fmt!{$f $($tail)*}
 	};
 
-	// custom formatting
+	// escape hatch
 	($f:ident |$ff:pat_param| $block:block $($tail:tt)*) => {
 		let $ff = &mut *$f;
 		$block
@@ -204,35 +204,18 @@ macro_rules! __fmt {
 		$crate::__fmt!{$f $($tail)*}
 	};
 
-	// if let
-	($f:ident if let $p:pat = ($e:expr) { $($body:tt)* } $($tail:tt)*) => {
-		$crate::__fmt_if!{$f [if let $p = $e { $crate::__fmt!{$f $($body)*} }] $($tail)*}
-	};
-	($f:ident if let $p:pat = $($tail:tt)*) => {
-		$crate::__fmt_with_parens!{__fmt; [$f if let $p =] [] $($tail)*}
-	};
-
 	// if
-	($f:ident if ($e:expr) { $($body:tt)* } $($tail:tt)*) => {
-		$crate::__fmt_if!{$f [if $e { $crate::__fmt!{$f $($body)*} }] $($tail)*}
-	};
 	($f:ident if $($tail:tt)*) => {
-		$crate::__fmt_with_parens!{__fmt; [$f if] [] $($tail)*}
+		$crate::__fmt_if!{$f [] if $($tail)*}
 	};
 
 	// match
-	($f:ident match ($e:expr) { $($p:pat => { $($body:tt)* }$(,)?)* } $($tail:tt)*) => {
-		match $e {
-			$($p => { $crate::__fmt!{$f $($body)*} },)*
-		}
-		$crate::__fmt!{$f $($tail)*}
-	};
 	($f:ident match ($e:expr) { $($body:tt)* } $($tail:tt)*) => {
 		$crate::__fmt_match!{$f match ($e) {} $($body)*}
 		$crate::__fmt!{$f $($tail)*}
 	};
 	($f:ident match $($tail:tt)*) => {
-		$crate::__fmt_with_parens!{__fmt; [$f match] [] $($tail)*}
+		$crate::__with_parens!{__fmt! [$f match] () $($tail)*}
 	};
 
 	// for
@@ -243,7 +226,7 @@ macro_rules! __fmt {
 		$crate::__fmt!{$f $($tail)*}
 	};
 	($f:ident for $p:pat in $($tail:tt)*) => {
-		$crate::__fmt_with_parens!{__fmt; [$f for $p in] [] $($tail)*}
+		$crate::__with_parens!{__fmt! [$f for $p in] () $($tail)*}
 	};
 
 	// optimization
@@ -256,6 +239,8 @@ macro_rules! __fmt {
 	($f:ident) => {};
 }
 
+
+// Parse the formatting inside formatting braces.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __fmt_format {
@@ -272,7 +257,6 @@ macro_rules! __fmt_format {
 		$crate::__fmt_expr!([$($e)*])
 	};
 }
-
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __fmt_expr {
@@ -287,12 +271,28 @@ macro_rules! __fmt_expr {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __fmt_if {
+	// if let
+	($f:ident [$($c:tt)*] if let $p:pat = ($e:expr) { $($body:tt)* } $($tail:tt)*) => {
+		$crate::__fmt_if!{$f [$($c)* if let $p = $e { $crate::__fmt!{$f $($body)*} }] $($tail)*}
+	};
+	($f:ident [$($c:tt)*] if let $p:pat = $($tail:tt)*) => {
+		$crate::__with_parens!{__fmt_if! [$f [$($c)*] if let $p =] () $($tail)*}
+	};
+
+	// if
+	($f:ident [$($c:tt)*] if ($e:expr) { $($body:tt)* } $($tail:tt)*) => {
+		$crate::__fmt_if!{$f [$($c)* if $e { $crate::__fmt!{$f $($body)*} }] $($tail)*}
+	};
+	($f:ident [$($c:tt)*] if $($tail:tt)*) => {
+		$crate::__with_parens!{__fmt_if! [$f [$($c)*] if] () $($tail)*}
+	};
+
 	// else if let
 	($f:ident [$($c:tt)*] else if let $p:pat = ($e:expr) { $($body:tt)* } $($tail:tt)*) => {
 		$crate::__fmt_if!{$f [$($c)* else if let $p = $e { $crate::__fmt!{$f $($body)*} }] $($tail)*}
 	};
 	($f:ident [$($c:tt)*] else if let $p:pat = $($tail:tt)*) => {
-		$crate::__fmt_with_parens!{__fmt_if; [$f [$($c)*] else if let $p =] [] $($tail)*}
+		$crate::__with_parens!{__fmt_if! [$f [$($c)*] else if let $p =] () $($tail)*}
 	};
 
 	// else if
@@ -300,7 +300,7 @@ macro_rules! __fmt_if {
 		$crate::__fmt_if!{$f [$($c)* else if $e { $crate::__fmt!{$f $($body)*} }] $($tail)*}
 	};
 	($f:ident [$($c:tt)*] else if $($tail:tt)*) => {
-		$crate::__fmt_with_parens!{__fmt_if; [$f [$($c)*] else if] [] $($tail)*}
+		$crate::__with_parens!{__fmt_if! [$f [$($c)*] else if] () $($tail)*}
 	};
 
 	// else
@@ -321,15 +321,15 @@ macro_rules! __fmt_if {
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __fmt_with_parens {
-	($next:ident; [$($prefix:tt)*] [$($tt:tt)*] { $($body:tt)* } $($tail:tt)*) => {
+macro_rules! __with_parens {
+	($next:ident! [$($prefix:tt)*] ($($tt:tt)*) { $($body:tt)* } $($tail:tt)*) => {
 		$crate::$next!{$($prefix)* ($($tt)*) { $($body)* } $($tail)*}
 	};
-	($next:ident; [$($prefix:tt)*] [$($tt:tt)*] $nom:tt $($tail:tt)*) => {
-		$crate::__fmt_with_parens!{$next; [$($prefix)*] [$($tt)* $nom] $($tail)*}
+	($next:ident! [$($prefix:tt)*] ($($tt:tt)*) $nom:tt $($tail:tt)*) => {
+		$crate::__with_parens!{$next! [$($prefix)*] ($($tt)* $nom) $($tail)*}
 	};
 	// Allows auto complete to work without the following {}
-	($next:ident; [$($prefix:tt)*] [$($tt:tt)*]) => {
+	($next:ident! [$($prefix:tt)*] ($($tt:tt)*)) => {
 		$crate::$next!{$($prefix)* ($($tt)*) {}}
 		compile_error!(concat!("missing block after expression: ", stringify!($($tt)*)));
 	};
@@ -338,32 +338,32 @@ macro_rules! __fmt_with_parens {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __fmt_match {
-	($f:ident match ($e:expr) {$($rpat:pat => $block:block)*} $p:pat => { $($body:tt)* }, $($tail:tt)*) => {
-		$crate::__fmt_match!{$f match ($e) {$($rpat => $block)* $p => { $crate::__fmt!{$f $($body)*} }} $($tail)*}
+	($f:ident match ($e:expr) {$($arms:tt)*} $pat:pat $(if $guard:expr)? => { $($body:tt)* }, $($tail:tt)*) => {
+		$crate::__fmt_match!{$f match ($e) {$($arms)* $pat $(if $guard)? => { $crate::__fmt!{$f $($body)*} }} $($tail)*}
 	};
-	($f:ident match ($e:expr) {$($rpat:pat => $block:block)*} $p:pat => { $($body:tt)* } $($tail:tt)*) => {
-		$crate::__fmt_match!{$f match ($e) {$($rpat => $block)* $p => { $crate::__fmt!{$f $($body)*} }} $($tail)*}
+	($f:ident match ($e:expr) {$($arms:tt)*} $pat:pat $(if $guard:expr)? => { $($body:tt)* } $($tail:tt)*) => {
+		$crate::__fmt_match!{$f match ($e) {$($arms)* $pat $(if $guard)? => { $crate::__fmt!{$f $($body)*} }} $($tail)*}
 	};
-	($f:ident match ($e:expr) {$($rpat:pat => $block:block)*} $p:pat => $($tail:tt)*) => {
-		$crate::__fmt_until_comma!{__fmt_match; [$f match ($e) {$($rpat => $block)*} $p =>] {} $($tail)*}
+	($f:ident match ($e:expr) {$($arms:tt)*} $pat:pat $(if $guard:expr)? => $($tail:tt)*) => {
+		$crate::__until_comma!{__fmt_match! [$f match ($e) {$($arms)*} $pat $(if $guard)? =>] {} $($tail)*}
 	};
-	($f:ident match ($e:expr) {$($rpat:pat => $block:block)*}) => {
+	($f:ident match ($e:expr) {$($pat:pat $(if $guard:expr)? => $block:block)*}) => {
 		match $e {
-			$($rpat => $block)*
+			$($pat $(if $guard)? => $block)*
 		}
 	};
 }
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __fmt_until_comma {
-	($next:ident; [$($prefix:tt)*] {$($tt:tt)*} , $($tail:tt)*) => {
+macro_rules! __until_comma {
+	($next:ident! [$($prefix:tt)*] {$($tt:tt)*} , $($tail:tt)*) => {
 		$crate::$next!{$($prefix)* {$($tt)*}, $($tail)*}
 	};
-	($next:ident; [$($prefix:tt)*] {$($tt:tt)*} $nom:tt $($tail:tt)*) => {
-		$crate::__fmt_until_comma!{$next; [$($prefix)*] {$($tt)* $nom} $($tail)*}
+	($next:ident! [$($prefix:tt)*] {$($tt:tt)*} $nom:tt $($tail:tt)*) => {
+		$crate::__until_comma!{$next! [$($prefix)*] {$($tt)* $nom} $($tail)*}
 	};
-	($next:ident; [$($prefix:tt)*] {$($tt:tt)*}) => {
+	($next:ident! [$($prefix:tt)*] {$($tt:tt)*}) => {
 		$crate::$next!{$($prefix)* {$($tt)*}}
 	};
 }
@@ -395,6 +395,7 @@ fn tests() {
 
 	// Control flow
 	let _ = fmt!(if false {});
+	let _ = fmt!(if false {} if true {});
 	let _ = fmt!(if false {} else {});
 	let _ = fmt!(if false {} else if true {});
 	let _ = fmt!(if false {} else if false {} else {});
@@ -404,6 +405,7 @@ fn tests() {
 	let _ = fmt!(if let Some(_) = Some(42) {} else if let Some(_) = Some(13) {} else {});
 	let _ = fmt!(match false { false => {}, true => {}});
 	let _ = fmt!(match 0i32 { 0 => "0", 1 => {} _ => {},});
+	let _ = fmt!(match false { _ if false => {} _ => {}});
 	let _ = fmt!(for _ in 0..4 {});
 	let _ = fmt!(for _ in &[1, 2, 3, 4] {});
 

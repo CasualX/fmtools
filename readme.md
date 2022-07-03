@@ -145,21 +145,21 @@ assert_eq!(capture_by_value(), "{a = 42}");
 
 The displayable object can own the captured variables with `move` and can be returned from functions.
 
-### Custom formatting
+### Escape hatch
 
 ```rust
-fn custom_formatting() -> String {
+fn escape_hatch() -> String {
 	fmtools::format! {
 		"Now entering ["
-		|f| f.write_str("custom formatting")?;
+		|f| f.write_str("escape hatch")?;
 		"]"
 	}
 }
 
-assert_eq!(custom_formatting(), "Now entering [custom formatting]");
+assert_eq!(escape_hatch(), "Now entering [escape hatch]");
 ```
 
-Closure syntax provides an escape hatch to inject custom code if needed.
+Closure syntax provides an escape hatch to inject code if needed.
 The argument's type is [`&mut Formatter`](https://doc.rust-lang.org/std/fmt/struct.Formatter.html).
 
 License
