@@ -106,7 +106,6 @@ macro_rules! panic {
 	};
 }
 
-#[cfg(test)]
 #[test]
 fn test_prelude() {
 	use std::fmt::Write;
