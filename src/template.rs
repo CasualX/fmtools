@@ -59,7 +59,8 @@
 /// # let s =
 /// fmtools::fmt! {
 /// 	"At "
-/// 	if power >= 1.0 { "full" } else { {power * 100.0:.0}"%" }
+/// 	if power >= 1.0 { "full" }
+/// 	else { {power * 100.0:.0}"%" }
 /// 	" power"
 /// }
 /// # .to_string();

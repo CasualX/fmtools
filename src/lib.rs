@@ -12,7 +12,7 @@ Features include:
 * Capture variables by value or by reference
 * Escape hatch to inject custom formatting code
 
-See [fmt](crate::fmt!) for more information.
+See [fmt!] for more information.
 */
 
 #![cfg_attr(not(any(test, feature = "std")), no_std)]
