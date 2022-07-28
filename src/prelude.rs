@@ -109,12 +109,13 @@ macro_rules! panic {
 #[test]
 fn test_prelude() {
 	use std::fmt::Write;
-	print!("print");
-	println!("println");
-	eprint!("eprint");
-	eprintln!("eprintln");
-	let mut s = format!("format");
-	let _ = write!(s, "write");
-	let _ = writeln!(s, "writeln");
+	crate::print!("print");
+	crate::println!("println");
+	crate::eprint!("eprint");
+	crate::eprintln!("eprintln");
+	let mut s = crate::format!("format");
+	let _ = crate::write!(s, "write");
+	let _ = crate::writeln!(s, "writeln");
+	assert_eq!(s, "formatwritewriteln\n");
 	// tpanic!("panic");
 }

@@ -83,7 +83,8 @@ fn control_flow1() -> String {
 
 	fmtools::format! {
 		"At "
-		if power >= 1.0 { "full" } else { {power * 100.0:.0}"%" }
+		if power >= 1.0 { "full" }
+		else { {power * 100.0:.0}"%" }
 		" power"
 	}
 }

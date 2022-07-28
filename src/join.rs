@@ -7,7 +7,11 @@ use core::fmt;
 /// assert_eq!(result, "1--2--3--4");
 /// ```
 #[inline]
-pub fn join<T>(sep: &'static str, collection: T) -> impl fmt::Display + fmt::Debug where T: IntoIterator, <T as IntoIterator>::Item: fmt::Display, <T as IntoIterator>::IntoIter: Clone {
+pub fn join<T>(sep: &'static str, collection: T) -> impl fmt::Display + fmt::Debug
+	where T: IntoIterator,
+		<T as IntoIterator>::Item: fmt::Display,
+		<T as IntoIterator>::IntoIter: Clone
+{
 	let iter = collection.into_iter();
 	crate::fmt(move |f| {
 		let mut draw = false;
