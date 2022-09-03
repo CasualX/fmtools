@@ -33,7 +33,24 @@
 ///
 /// The resulting string is `hex(42) = 0x2a`.
 ///
-/// The rules for the specifiers are exactly the same as Rust's [standard formatting syntax](std::fmt).
+/// The rules for the specifiers are exactly the same as Rust's [standard formatting syntax](std::fmt),
+/// with one exception: specifying width and precision with a variable has a different syntax,
+/// since these macros don't take arguments in the same way.  It uses the same `$` notation, but is
+/// limited to positional references (no `w=width` and `w$`), and the argument comes inside the
+/// brackets, separated by a comma from the name of the displayed object.  The argument can be any
+/// value expression.
+///
+/// ```
+/// let name = "World";
+/// let width = 8;
+///
+/// # let s =
+/// fmtools::fmt!("Hello "{name,width:<1$}"!");
+/// # let s = s.to_string();
+/// # assert_eq!(s, "Hello World   !");
+/// ```
+///
+/// The resulting string is `Hello world   !` (_i.e._, `Hello world⎵⎵⎵!`).
 ///
 /// ### Let bindings
 ///
